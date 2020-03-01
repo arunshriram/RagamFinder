@@ -18,7 +18,7 @@ def freqToPitch(freq):
     h = round(12*log2(freq/C0))
     octave = h // 12
     n = h % 12
-    return name[n] #+ str(octave)
+    return name[n] + str(octave)
 
 # Takes a ascended-sorted list of pitch frequencies from FFT analysis, and returns a list of the fundamental frequencies found.
 def getFundamentalFrequencies(pitchFrequencies):
@@ -31,22 +31,27 @@ def getFundamentalFrequencies(pitchFrequencies):
     index = 0
     for freq in pitchFrequencies:
         numberOfOvertones = 0
+        if freq in checkedFrequencies:
+            index += 1
+            continue
         for hi_freq_index in range(index + 1, len(pitchFrequencies)): # checking the right part of the list
             hi_freq = pitchFrequencies[hi_freq_index]
             if hi_freq not in checkedFrequencies and checkIfOvertone(freq, hi_freq): # this means that the hi freq pitch is an overtone of freq
                 numberOfOvertones += 1
                 checkedFrequencies.append(hi_freq) # We don't want to see this pitch again
-        if numberOfOvertones > 0:
+        if numberOfOvertones > 1:
             funFreqs.append(freq)
         index += 1
     return funFreqs
 
-# Takes two pitch frequencies, and determines if the second is an overtone (a multiple of 2^n of the first)
+# Takes two pitch frequencies, and determines if the second is an overtone (an integer multiple of the first)
 # Returns True if pitchB is an overtone of pitchA
 def checkIfOvertone(pitchA, pitchB):
-    epsilon = 0.03*pitchB 
-    for power in range(1, 8): # pitches won't get higher than 2^9 of some value
-        theoreticalOvertoneValue = pow(2, power)*pitchA
+    epsilon = 0.03*pitchB # arbitrary value that scales with the pitches so that values are caught about halfway between other pitch frequencies
+    for harmonic in range(2, 16): # checking 15 harmonics
+        theoreticalOvertoneValue = harmonic*pitchA
+        if theoreticalOvertoneValue > 2*pitchB:
+            return False
         if theoreticalOvertoneValue <= pitchB + epsilon and theoreticalOvertoneValue >= pitchB-epsilon:
             return True
     return False
@@ -69,13 +74,14 @@ def showPlotForSample(rate, samples):
         fourier_to_plot = abs(fourier[0:len(fourier)//2])
         w = w[0:len(fourier)//2]
 
-        indexesOfPeaks = peakutils.indexes(fourier_to_plot, thres=0.04)
+        indexesOfPeaks = peakutils.indexes(fourier_to_plot, thres=0.16)
         peakFrequencies = [w[u] for u in indexesOfPeaks]
         
         xxx = peakutils.interpolate(w, fourier_to_plot, ind=indexesOfPeaks)
         pitchPeaks = [freqToPitch(freq) for freq in peakFrequencies]
-        print(peakFrequencies)
-        print("Found these fundamental frequencies: %s" % str(getFundamentalFrequencies(peakFrequencies)))
+        print("Peaks: %s" % str(peakFrequencies))
+        funFreqs = getFundamentalFrequencies(peakFrequencies)
+        print("Found these fundamental frequencies: %s" % str(funFreqs))
         # print("XXX: %s" % str([freqToPitch(freq) for freq in xxx]))
         # print("Peak Frequencies: %s" % str(pitchPeaks))
         # print()
@@ -83,8 +89,9 @@ def showPlotForSample(rate, samples):
         plt.xlabel('frequency')
         plt.ylabel('amplitude')
         plt.plot(w[:int(len(w)/10)], fourier_to_plot[:int(len(fourier_to_plot)/10)])
-        plt.show()
-        return getFundamentalFrequencies(peakFrequencies)
+        # plt.show()
+        return funFreqs
+    
 def processFile(filename):
     
     downsample = 1
@@ -110,7 +117,7 @@ def processFile(filename):
         frequentNotes = [freqToPitch(freq) for freq in frequentPitches]
         for pitch in frequentNotes:
             if pitch not in mostFrequentPitches:
-                mostFrequentPitches[pitch] = 0
+                mostFrequentPitches[pitch] = 1
             else:
                 mostFrequentPitches[pitch] += 1
         total_frames += read
@@ -125,13 +132,13 @@ def processFile(filename):
     return sorted(mostFrequentPitches.items(), reverse=True, key = lambda kv: (kv[1], kv[0]))
 
 def testRagam():
-    arohanam = [Note("S"), Note("M", 1), Note("P"), Note("S")]
-    avarohanam = [Note("S"), Note("P"), Note("M", 1), Note("S")]
-    ragdb = RagamDB("full-ragam-list.txt")
+    arohanam = [Note("S"), Note("R", 2), Note("G", 3), Note("P"), Note("N", 3), Note("S")]
+    avarohanam = [Note("S"), Note("N", 3), Note("D", 2), Note("P"), Note("M", 2), Note("G", 3), Note("R", 2), Note("S")]
+    ragdb = RagamDB("ragam_list.txt")
     print(ragdb.searchByScales(arohanam, avarohanam))
     
 def testSmallFile():
-    file = "small_test_5.mp3"
+    file = "small_test_3.mp3"
     pitches = processFile(file)
     print(pitches)
 
