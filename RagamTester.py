@@ -39,7 +39,7 @@ def getFundamentalFrequencies(pitchFrequencies):
             if hi_freq not in checkedFrequencies and checkIfOvertone(freq, hi_freq): # this means that the hi freq pitch is an overtone of freq
                 numberOfOvertones += 1
                 checkedFrequencies.append(hi_freq) # We don't want to see this pitch again
-        if numberOfOvertones > 1:
+        if numberOfOvertones > 0:
             funFreqs.append(freq)
         index += 1
     return funFreqs
@@ -74,7 +74,7 @@ def showPlotForSample(rate, samples):
         fourier_to_plot = abs(fourier[0:len(fourier)//2])
         w = w[0:len(fourier)//2]
 
-        indexesOfPeaks = peakutils.indexes(fourier_to_plot, thres=0.16)
+        indexesOfPeaks = peakutils.indexes(fourier_to_plot, thres=0.1)
         peakFrequencies = [w[u] for u in indexesOfPeaks]
         
         xxx = peakutils.interpolate(w, fourier_to_plot, ind=indexesOfPeaks)
@@ -137,10 +137,9 @@ def testRagam():
     ragdb = RagamDB("ragam_list.txt")
     print(ragdb.searchByScales(arohanam, avarohanam))
     
-def testSmallFile():
-    file = "small_test_3.mp3"
-    pitches = processFile(file)
-    print(pitches)
+def testFile(filename):
+    pitches = processFile(filename)
+    return pitches
 
 def testAllData():
     successTracker = {}
@@ -179,13 +178,90 @@ def testAllData():
     print()
     print("Success rate: %s%%" % ('{0:.2f}'.format(100*(successes/float(total)))))
     
+# Returns the number of steps between a start pitch and end pitch.
+# The number of steps is positive if the end pitch is higher than the starting pitch. Negative if otherwise. 0 if the same frequency.
+def getNumSteps(start, end):
+    startPitch = start[:len(start) - 1]
+    startClass = int(start[len(start)-1:])
+    endPitch = end[:len(end) - 1]
+    endClass = int(end[len(end) - 1:])
+    pitchList = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+    steps = 0
+    if endClass == startClass:
+        steps = abs(pitchList.index(endPitch) - pitchList.index(startPitch))
+    elif endClass > startClass:
+        steps += pitchList.index("B") - pitchList.index(startPitch)
+        startClass += 1
+        while startClass != endClass:
+            steps += 12
+            startClass += 1
+        steps += pitchList.index(endPitch) + 1
+    elif endClass < startClass:
+        steps += pitchList.index(startPitch) - pitchList.index("C")
+        startClass -= 1
+        while startClass != endClass:
+            steps += 12
+            startClass -=1
+        steps += pitchList.index("B") - pitchList.index(endPitch)
+    return steps
+
+# Given a number of steps, assuming numSteps = 0 represents S, return the corresponding note.
+# Assume numSteps will always be an integer from 0-11.
+def convertPitchFromSteps(numSteps):
+    if numSteps == 0:
+        return [Note("S")]
+    elif abs(numSteps) == 1 or abs(numSteps) == 11:
+        if numSteps == -1 or numSteps == 11:
+            return [Note("N3")]
+        else:
+            return [Note("R1")]
+    elif abs(numSteps) == 2 or abs(numSteps) == 10:
+        if numSteps == -2 or numSteps == 10:
+            return [Note("D3"), Note("N2")]
+        else:
+            return [Note("R2"), Note("G1")]
+    elif abs(numSteps) == 3 or abs(numSteps) == 9:
+        if numSteps == -3 or numSteps == 9:
+            return [Note("D2"), Note("N1")]
+        else:
+            return [Note("R3"), Note("G2")]
+    elif abs(numSteps) == 4 or abs(numSteps) == 8:
+        if numSteps == -4 or numSteps == 8:
+            return [Note("D1")]
+        else:
+            return [Note("G3")]
+    elif abs(numSteps) == 5 or abs(numSteps) == 7:
+        if numSteps == -5 or numSteps == 7:
+            return [Note("P")]
+        else:
+            return [Note("M1")]
+    elif abs(numSteps) == 6:
+            return [Note("M2")]
+    return []
+    
+# Takes a list of pitches (presumably from a given frame) and a pitch representing the sruthi. The
+# sruthi will only ever be going up from C4 to C5. 
+def convertPitchesToSwaras(pitches, sruthi):
+    converted_pitches = [[]] # 2D list; there are 16 possible notes for 12 positions. There are overlaps
+    # between the R's and G's, and between the D's and N's. The order is:
+    # S, R1, R2/G1, R3/G2, G3, M1, M2, P, D1, D2/N1, D3/N2, N3. 
+    # If a pitch is in the position of a note that could possibly be another, a list representing both the
+    # notes is appended to converted_pitches list. Otherwise, a list of only one note will be appended.
+    for pitch in pitches:
+        numSteps = getNumSteps(sruthi, pitch)%12 # Will be positive, negative, or zero.
+        
+            
+    
 def main():
     # testRagam()
     print()
     print("Beginning sruthi analysis...")
     print()
     
-    testSmallFile()
+    pitches = testFile("Arun-voice-testing/c_scale_1.mp3")
+    
+    # Post processing data to see if I can isolate non-noise data
+    print(sorted([pitch for pitch in pitches if pitch[1] > 2]))
     
     # testAllData()
     

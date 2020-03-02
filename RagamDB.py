@@ -1,13 +1,24 @@
 class Note:
-    def __init__(self, note, position=0):
+    
+    # constructor for Note that takes Note(note, pitchclass)
+    def __init__(self, note, pitchclass=0):
         self.note = note
-        self.position = position 
+        self.pitchclass = pitchclass 
         
+    # constructor for Note that takes Note(notepitchclass), i.e. Note("D#3")
+    def __init__(self, notewithpitchclass):
+        if len(notewithpitchclass) == 1:
+            self.note = notewithpitchclass
+            self.pitchclass = 0
+        else:
+            self.note = notewithpitchclass[:len(notewithpitchclass) - 1]
+            self.pitchclass = int(notewithpitchclass[len(notewithpitchclass) - 1:])
+    
     def __eq__(self, other):
-        return self.note == other.note and self.position == other.position 
+        return self.note == other.note and self.pitchclass == other.pitchclass 
     
     def __repr__(self):
-        return "%s%d" % (self.note, self.position)
+        return "%s%d" % (self.note, self.pitchclass)
 
 class Ragam:
     def __init__(self, name, ascendingNotes, descendingNotes, parent=None):
