@@ -249,7 +249,8 @@ def convertPitchesToSwaras(pitches, sruthi):
     # notes is appended to converted_pitches list. Otherwise, a list of only one note will be appended.
     for pitch in pitches:
         numSteps = getNumSteps(sruthi, pitch)%12 # Will be positive, negative, or zero.
-        
+        converted_pitches.append(convertPitchFromSteps(numSteps))
+    return converted_pitches
             
     
 def main():
@@ -258,11 +259,9 @@ def main():
     print("Beginning sruthi analysis...")
     print()
     
-    pitches = testFile("Arun-voice-testing/c_scale_1.mp3")
-    
-    # Post processing data to see if I can isolate non-noise data
-    print(sorted([pitch for pitch in pitches if pitch[1] > 2]))
-    
+    #isolating non-noise fundamental pitches
+    pitches = sorted([pitch for pitch in testFile("Arun-voice-testing/c_scale_1.mp3") if pitch[1] > 2])
+    print(convertPitchesToSwaras([pitch[0] for pitch in pitches], "C4"))
     # testAllData()
     
 if __name__ == '__main__':
