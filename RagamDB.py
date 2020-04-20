@@ -1,12 +1,18 @@
 class Note:
     
-    # constructor for Note that takes Note(note, pitchclass)
-    def __init__(self, note, pitchclass=0):
+    # constructor for Note that takes Note(note, pitchclass, octave)
+    # Octave 0 is lower than S0, Octave 1 is regular singing octave, octave 2 is highest.
+    # Octave 1 starts at S0, octave 2 starts at S1
+    def __init__(self, note, pitchclass=0, octave=1):
         self.note = note
-        self.pitchclass = pitchclass 
+        self.pitchclass = pitchclass
+        self.octave = octave
         
-    # constructor for Note that takes Note(notepitchclass), i.e. Note("D#3")
-    def __init__(self, notewithpitchclass):
+    # constructor for Note that takes Note(notepitchclass, octave), i.e. Note("D#3")
+    # Octave 0 is lower than S0, Octave 1 is regular singing octave, octave 2 is highest.
+    # Octave 1 starts at S0, octave 2 starts at S1
+    def __init__(self, notewithpitchclass, octave=1):
+        self.octave = octave
         if len(notewithpitchclass) == 1:
             self.note = notewithpitchclass
             self.pitchclass = 0
@@ -15,10 +21,10 @@ class Note:
             self.pitchclass = int(notewithpitchclass[len(notewithpitchclass) - 1:])
     
     def __eq__(self, other):
-        return self.note == other.note and self.pitchclass == other.pitchclass 
+        return self.note == other.note and self.pitchclass == other.pitchclass and self.octave == other.octave
     
     def __repr__(self):
-        return "%s%d" % (self.note, self.pitchclass)
+        return "%s%d: %d" % (self.note, self.pitchclass, self.octave)
 
 class Ragam:
     def __init__(self, name, ascendingNotes, descendingNotes, parent=None):
@@ -112,19 +118,3 @@ class RagamDB:
         else:
             raise RagamNotFoundError
    
-# ragamdb = RagamDB("ragam_list.txt") 
-# ragamList = ragamdb.ragamList
-# equalRagas = []
-# seenRagas = []
-# for ragam in ragamList:
-#     for rag in ragamList:
-#         if rag in seenRagas:
-#             continue
-#         if rag.name != ragam.name and rag.ascending == ragam.ascending and rag.descending == ragam.descending:
-#             equalRagas.append((rag, ragam))
-#             seenRagas.append(rag)
-            
-# print(equalRagas)
-#     pass
-    # if ragam.ascending == [Note("S"), Note("R", 2), Note("G", 3), Note("P"), Note("N", 3), Note("S")] and ragam.descending == [Note("S"), Note("N", 3), Note("P"), Note("G", 3), Note("R", 2), Note("S")]:
-    # print(ragam.name)
