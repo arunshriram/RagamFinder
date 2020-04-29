@@ -102,37 +102,43 @@ def getFundamentalFrequencies(pitchFrequencies):
         return pitchFrequencies 
     funFreqs = []
     checkedFrequencies = []
-    index = 0
-    for freq in pitchFrequencies:
+    index = len(pitchFrequencies) - 1
+    # iterating over list from end to beginning; checking higher frequencies for overtones first.
+    for i in range(len(pitchFrequencies) - 1, -1, -1):
+        freq = pitchFrequencies[i]
         numberOfOvertones = 0
-        if freq in checkedFrequencies:
-            index += 1
-            continue
-        for hi_freq_index in range(index + 1, len(pitchFrequencies)): # checking the right part of the list
-            hi_freq = pitchFrequencies[hi_freq_index]
-            if hi_freq == freq:
+        curFunFreq = None
+        if freq in funFreqs:
+           index -= 1
+           continue
+        for low_freq_index in range(index - 1, -1, -1): # checking the left part of the list
+            low_freq = pitchFrequencies[low_freq_index]
+            if low_freq == freq:
                 continue
-            if hi_freq not in checkedFrequencies and checkIfOvertone(freq, hi_freq): # this means that the hi freq pitch is an overtone of freq
+            if low_freq not in funFreqs and checkIfOvertone(low_freq, freq): # this means that the freq pitch is an overtone of low_freq
                 numberOfOvertones += 1
-                checkedFrequencies.append(hi_freq) # We don't want to see this pitch again
-        if numberOfOvertones > 0:
-            funFreqs.append(freq)
-        index += 1
+                curFunFreq = low_freq
+        if numberOfOvertones > 0 and [checkIfOvertone(i, curFunFreq) for i in funFreqs] == [False]*len(funFreqs):
+            funFreqs.append(curFunFreq)
+            
+        index -= 1
     return funFreqs
 
 # Takes two pitch frequencies, and determines if the second is an overtone (an integer multiple of the first)
 # Returns True if pitchB is an overtone of pitchA
 def checkIfOvertone(pitchA, pitchB):
-    # if (pitchB/pitchA).is_integer():
-    #     # print("It's an overtone!")
-    #     return True
     epsilon = 0.03*pitchB # arbitrary value that scales with the pitches so that values are caught about halfway between other pitch frequencies
     for harmonic in range(2, 16): # checking 15 harmonics
         theoreticalOvertoneValue = harmonic*pitchA
         if theoreticalOvertoneValue > 2*pitchB:
             return False
-        if theoreticalOvertoneValue <= pitchB + epsilon and theoreticalOvertoneValue >= pitchB-epsilon:
-            return True
+        if epsilon >= 10:
+            if theoreticalOvertoneValue <= pitchB + epsilon and theoreticalOvertoneValue >= pitchB-epsilon:
+                return True
+        else:
+            # frequency resolution is 10 Hz; if epsilon is less than this, then just check at a minimum of 10 hz range
+            if theoreticalOvertoneValue <= pitchB + 10 and theoreticalOvertoneValue >= pitchB-10:
+                return True
     return False
             
 def showPlotForSample(rate, samples):
@@ -140,7 +146,6 @@ def showPlotForSample(rate, samples):
         # plt.xlabel('time')
         # plt.ylabel('amplitude')
         # plt.plot(samples)
-        # plt.show()
         len_data = len(samples)
 
         channel_1 = np.zeros(2**(int(np.ceil(np.log2(len_data)))))
@@ -160,7 +165,9 @@ def showPlotForSample(rate, samples):
         pitchPeaks = [freqToPitch(freq) for freq in peakFrequencies]
         print("Peaks: %s" % str(peakFrequencies))
         funFreqs = getFundamentalFrequencies(peakFrequencies)
-        print("Found these fundamental frequencies: %s" % str(funFreqs))
+        print("\n---------------------------------------------------------------------")
+        print("========> FFs: %s" % str(funFreqs))
+        print("---------------------------------------------------------------------\n")
         # print("XXX: %s" % str([freqToPitch(freq) for freq in xxx]))
         # print("Peak Frequencies: %s" % str(pitchPeaks))
         # print()
@@ -168,7 +175,7 @@ def showPlotForSample(rate, samples):
         plt.xlabel('frequency')
         plt.ylabel('amplitude')
         plt.plot(w[:int(len(w)/10)], fourier_to_plot[:int(len(fourier_to_plot)/10)])
-        plt.show()
+        # plt.show()
         return funFreqs
     
 def processFile(filename):
@@ -282,11 +289,11 @@ def main():
     print()
     
     #isolating non-noise fundamental pitches
-    x = testFile("maya_notes/r.mp3")
+    x = testFile("maya_notes/s0.mp3")
     pitches = [pitch for pitch in x ]
-    swaras = convertPitchesToSwaras([pitch[0] for pitch in pitches], "G3")
-    print(swaras)
-    # testAllData()
+    for pitch in pitches:
+        print("Swara: %s, Count: %d" % (convertPitchesToSwaras([pitch[0]], "G3")[0][0], pitch[1]))
+    
     
 if __name__ == '__main__':
     main()
