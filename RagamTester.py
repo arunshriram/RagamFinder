@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-import sys, os
+import sys, os, csv
 from aubio import source, pitch
 import os.path
 from numpy import array, ma
@@ -289,10 +289,16 @@ def main():
     print()
     
     #isolating non-noise fundamental pitches
-    x = testFile("maya_notes/s0.mp3")
+    file = "kalyani.mov"
+    sruthi = "G4"
+    filename = file[:file.index('.')]
+    x = testFile("ragam_testing/%s" % file)
     pitches = [pitch for pitch in x ]
-    for pitch in pitches:
-        print("Swara: %s, Count: %d" % (convertPitchesToSwaras([pitch[0]], "G3")[0][0], pitch[1]))
+    with open("output/%s.csv" % filename, 'w') as csvfile:
+        writer = csv.writer(csvfile)
+        for pitch in pitches:
+            writer.writerow([convertPitchesToSwaras([pitch[0]], sruthi)[0][0], pitch[1]])
+            print("Swara: %s, Count: %d" % (convertPitchesToSwaras([pitch[0]], sruthi)[0][0], pitch[1]))
     
     
 if __name__ == '__main__':
