@@ -104,29 +104,21 @@ def processFile(filename, sruthi):
     #         print("%s" % (convertPitchesToSwaras([note], sruthi)[0][0]))
     print("|============================================|")
 
-    count = 0
-    superwindow = []
-    cur_note = None
-    transitions = []
-    
+    initial_frame_count = 1
+    superwindow_size = 5
     output_list = []
-    
     pitchDict = {"S" : 0, "R": 1, "G": 2, "M": 3, "P": 4, "D": 6, "N": 7}
     
     while True: # For loop that iterates over every frame in the given file.
        
         samples, read = s()
-        count += 1
         if read < hop_s:
             break
         pitches = getFrequencies(44100, samples)
-
-        
                     
         newNotes = [freqToPitch(freq) for freq in pitches]
         
-        x = convertPitchesToSwaras(newNotes, sruthi)
-        output_list.append(x)
+        output_list.append(pitches)
         
         for note in newNotes:
             swara = convertPitchesToSwaras([note], sruthi)[0][0]
@@ -140,45 +132,16 @@ def processFile(filename, sruthi):
 
         print("|============================================|")
         # oldNotes = newNotes
-        
-        superwindow.append(pitches)
-        if count%5 == 0:
-            all_freqs = []
-            
-            for window in superwindow:
-                for pitch in window:
-                    all_freqs.append(pitch)
-            
-            try:
-                most_common = mode(all_freqs)
-                most_common = convertPitchesToSwaras([freqToPitch(most_common)], sruthi)[0][0]
-                if cur_note is None:
-                    cur_note = most_common
-                else:
-                    transitions.append(Transition(cur_note, most_common))
-                    cur_note = most_common
-                    
-            except:
-                # traceback.print_exc()
-                superwindow = []
-                print()
-                print("+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=")
-                print("No most common swara found.")
-                print("+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=")
-                print()
-                continue
-                
-            print()
-            print("+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=")
-            print("Most common swara for this superwindow: %s" % most_common)
-            print("+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=")
-            print()
-            superwindow = []
-            
-    if len(transitions) == 0:
-        transitions.append(cur_note)
-    print(transitions)
-    print ("COUNT: %d " % count)
+    
+    output_list = despecklePitches(output_list, superwindow_size, sruthi)
+    note_list = []
+    # Convert all frequencies to notes
+    for freqs in output_list:
+        pitches = [freqToPitch(freq) for freq in freqs]
+        notes = convertPitchesToSwaras(pitches, sruthi)
+        if len(notes) > 0:
+            notes = notes[0]
+        note_list.append(notes)
     y = []
     count = 0;
     # with open("output.csv", 'w') as csvfile:
@@ -186,10 +149,9 @@ def processFile(filename, sruthi):
     noteToNums = {"S0": 0, "R1": 1, "R2": 2, "G1": 2, "R3": 3, "G2": 3, "G3": 4, 
             "M1": 5, "M2": 6, "P0": 7, "D1": 8, "D2": 9, "N1": 9, "D3": 10,
             "N2": 10, "N3": 11}
-    for frame in output_list: 
+    for frame in note_list: 
         frame_notes = []
-        for note_list in frame:
-            note = note_list[0]
+        for note in frame:
             val_to_append = noteToNums[note.note + str(note.pitchclass)]
             if note.octave > 1:
                 val_to_append += 12
@@ -199,17 +161,75 @@ def processFile(filename, sruthi):
     x = list(range(count))
     for xe, ye in zip(x, y):
         plt.scatter([xe]*len(ye), ye, c=[[0, 0, 0]])
-    plt.title("Plot of all frames' notes for Mayamalavagowla Arohanam")
+    plt.title("Plot of all frames' notes for Mayamalavagowla Arohanam (despeckled)")
     plt.xlabel("Frame number")
     plt.ylabel("Note(s) identified for frame")
     plt.xticks(np.arange(0, count, 2))
+    plt.yticks(np.arange(0, max(max(y)), 1))
+
     plt.show()
     # print("Total frames: ", total_frames)
     # print(mostFrequentPitches)
     return accumulated_pitches.items()
     # return sorted(accumulated_pitches.items(), reverse=False, key = lambda kv: (kv[1], kv[0]))
     
-    
+# Takes a list of lists of pitches, a super window size, and a sruthi. Each list of pitches represents all the pitches
+# discovered in one frame. So if there are 5 frames analyzed in total, and 1 pitch found per frame, then the pitchList 
+# would be [[a], [b], [c], [d], [e]], where a, b, c, d, and e represent frequencies. 
+def despecklePitches(pitchList, superwindow_size, sruthi):
+    middle_frame_index = int(superwindow_size/2)
+    superwindow = pitchList[:superwindow_size] # if x is superwindow size, take the first x elements from the input list
+    dataIndex = superwindow_size # dataIndex is used to get the next pitch when sliding the superwindow
+    while dataIndex <= len(pitchList):
+        all_superwindow_freqs = [] # will contain all the frequencies for the entire superwindow
+        for frame in superwindow:
+            for pitch in frame:
+                all_superwindow_freqs.append(pitch)
+        try:
+            most_common_freq = mode(all_superwindow_freqs)
+            most_common_note = convertPitchesToSwaras([freqToPitch(most_common_freq)], sruthi)[0][0]
+        except:
+            traceback.print_exc()
+            # superwindow = []
+            print()
+            print("+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=")
+            print("No most common swara found.")
+            print("+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=")
+            print()
+            # Remove the first element of the superwindow and add the next element
+            superwindow = superwindow[1:]
+            if dataIndex == len(pitchList):
+                break
+            superwindow.append(pitchList[dataIndex])
+            dataIndex += 1
+            continue
+            
+        print()
+        print("+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=")
+        print("Most common swara for this superwindow: %s" % most_common_note)
+        print("+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=")
+        print()
+        old_mid_frame = pitchList[middle_frame_index]
+        pitchList[middle_frame_index] = [most_common_freq]
+        print("Swapped %s with %s" % (old_mid_frame, pitchList[middle_frame_index]))
+        
+        # Now, remove first element from superwindow to move the window by 1 frame
+        
+        # This makes sure that the first element of new superwindow is the second element of old superwindow
+        new_low_index = (middle_frame_index - int(superwindow_size/2)) + 1 
+        new_high_index = middle_frame_index + int(superwindow_size/2) + 1
+        superwindow = pitchList[new_low_index:new_high_index]
+        middle_frame_index += 1 # superwindow will be offset by 1; move the middle index pointer up 1 frame.
+        # add the next frame's data to the superwindow
+        if dataIndex < len(pitchList):
+            superwindow.append(pitchList[dataIndex])
+        dataIndex += 1
+    print()
+    print("|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
+    print("                         Finished despeckling!")
+    print("|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
+    print()
+    return pitchList
 
 def testRagam():
     arohanam = [Note("S", 1), Note("R", 2, 1), Note("G", 3, 1), Note("P", 1), Note("N", 3, 1), Note("S", 2)]
@@ -266,7 +286,7 @@ def main():
     print()
     
     #isolating non-noise fundamental pitches
-    file = "mayamalavagowla_arohanam_g.mp3"
+    file = "mayamalavagowla_testing/mayamalavagowla_arohanam_g.mp3"
     sruthi = "G3"
     filename = file[:file.index('.')]
     x = testFile("%s" % file, sruthi)
