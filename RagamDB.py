@@ -1,3 +1,4 @@
+
 class Note:
     
     # constructor for Note that takes Note(note, pitchclass, octave)
@@ -7,6 +8,8 @@ class Note:
         self.note = note
         self.pitchclass = pitchclass
         self.octave = octave
+        self.notes = ["S", "R", "G", "M", "P", "D", "N"]
+
         
     # constructor for Note that takes Note(notepitchclass, octave), i.e. Note("D#3")
     # Octave 0 is lower than S0, Octave 1 is regular singing octave, octave 2 is highest.
@@ -19,12 +22,42 @@ class Note:
         else:
             self.note = notewithpitchclass[:len(notewithpitchclass) - 1]
             self.pitchclass = int(notewithpitchclass[len(notewithpitchclass) - 1:])
+        self.notes = ["S", "R", "G", "M", "P", "D", "N"]
     
     def __eq__(self, other):
         return self.note == other.note and self.pitchclass == other.pitchclass and self.octave == other.octave
     
     def __repr__(self):
         return "%s%d: %d" % (self.note, self.pitchclass, self.octave)
+    
+    def __gt__(self, other):
+        index1 = self.notes.index(self.note)
+        index2 = self.notes.index(other.note)
+        if self.octave > other.octave:
+            return True
+        if self.octave == other.octave:
+            if index1 > index2:
+                return True 
+            if index1 == index2:
+                if self.pitchclass > other.pitchclass:
+                    return True
+        return False
+    
+    def __lt__(self, other):
+        index1 = self.notes.index(self.note)
+        index2 = self.notes.index(other.note)
+        if self.octave < other.octave:
+            return True
+        if self.octave == other.octave:
+            if index1 < index2:
+                return True 
+            if index1 == index2:
+                if self.pitchclass > other.pitchclass:
+                    return True
+        return False
+
+    
+
 
 class Ragam:
     def __init__(self, name, ascendingNotes, descendingNotes, parent=None):
