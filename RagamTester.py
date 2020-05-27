@@ -97,20 +97,13 @@ def processFile(filename, sruthi):
 
 
     accumulated_pitches = {}
-    # samples, read = s()
-    # pitches = getFrequencies(44100, samples)
-    # oldNotes = [freqToPitch(freq) for freq in pitches]
-    # for note in oldNotes:
-    #         print("%s" % (convertPitchesToSwaras([note], sruthi)[0][0]))
+   
     print("|============================================|")
 
-    initial_frame_count = 1
-    superwindow_size = 5
     output_list = []
     pitchDict = {"S" : 0, "R": 1, "G": 2, "M": 3, "P": 4, "D": 6, "N": 7}
     
     while True: # For loop that iterates over every frame in the given file.
-       
         samples, read = s()
         if read < hop_s:
             break
@@ -120,6 +113,7 @@ def processFile(filename, sruthi):
         
         output_list.append(pitches)
         
+        # Printing rough approximation of all notes to see easily
         for note in newNotes:
             swara = convertPitchesToSwaras([note], sruthi)[0][0]
             print("\t" * pitchDict[swara.note[0]], end='')
@@ -133,26 +127,46 @@ def processFile(filename, sruthi):
         print("|============================================|")
         # oldNotes = newNotes
     
+    superwindow_size = 5
+    
     output_list = despecklePitches(output_list, superwindow_size, sruthi)
-    note_list = []
-    # Convert all frequencies to notes
-    for freqs in output_list:
+    
+    note_list = extractNotesFromDespeckledFreqs(output_list[2:len(output_list) - 2], sruthi)
+    
+    transition_list = determineTransitionsFromNotes(note_list)
+    
+    
+    
+
+    
+    #-----------------------------------------------------------------------------------
+
+    # GRAPH OF NOTES AFTER DESPECKLE    
+    # plotDespeckledNotes(output_list, sruthi)
+    
+    #-----------------------------------------------------------------------------------
+
+    return transition_list
+
+def plotDespeckledNotes(original_freq_list, sruthi):
+    notes_to_graph = []
+    
+    # Convert all original_freq_list to notes
+    for freqs in original_freq_list:
         pitches = [freqToPitch(freq) for freq in freqs]
         notes = convertPitchesToSwaras(pitches, sruthi)
         if len(notes) > 0:
             notes = notes[0]
-        note_list.append(notes)
+        notes_to_graph.append(notes)
     y = []
     count = 0;
-    # with open("output.csv", 'w') as csvfile:
-    #     writer = csv.writer(csvfile)
     noteToNums = {"S0": 0, "R1": 1, "R2": 2, "G1": 2, "R3": 3, "G2": 3, "G3": 4, 
             "M1": 5, "M2": 6, "P0": 7, "D1": 8, "D2": 9, "N1": 9, "D3": 10,
             "N2": 10, "N3": 11}
-    for frame in note_list: 
+    for frame in notes_to_graph: 
         frame_notes = []
         for note in frame:
-            val_to_append = noteToNums[note.note + str(note.pitchclass)]
+            val_to_append = noteToNums[note.note + str(note.noteclass)]
             if note.octave > 1:
                 val_to_append += 12
             frame_notes.append(val_to_append)
@@ -168,10 +182,6 @@ def processFile(filename, sruthi):
     plt.yticks(np.arange(0, max(max(y)), 1))
 
     plt.show()
-    # print("Total frames: ", total_frames)
-    # print(mostFrequentPitches)
-    return accumulated_pitches.items()
-    # return sorted(accumulated_pitches.items(), reverse=False, key = lambda kv: (kv[1], kv[0]))
     
 # Takes a list of lists of pitches, a super window size, and a sruthi. Each list of pitches represents all the pitches
 # discovered in one frame. So if there are 5 frames analyzed in total, and 1 pitch found per frame, then the pitchList 
@@ -197,10 +207,27 @@ def despecklePitches(pitchList, superwindow_size, sruthi):
             print("+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=")
             print()
             # Remove the first element of the superwindow and add the next element
-            superwindow = superwindow[1:]
-            if dataIndex == len(pitchList):
+            old_mid_frame = pitchList[middle_frame_index]
+            
+            # since no most common freq, just going to pick the second half of the superwindow.
+            defaultPitch = pitchList[middle_frame_index + 1]
+            if defaultPitch != []:
+                defaultPitch = [defaultPitch[0]]
+            pitchList[middle_frame_index] = defaultPitch
+            print("Swapped %s with %s" % (old_mid_frame, pitchList[middle_frame_index]))
+            
+            # Now, remove first element from superwindow to move the window by 1 frame
+            
+            # This makes sure that the first element of new superwindow is the second element of old superwindow
+            new_low_index = (middle_frame_index - int(superwindow_size/2)) + 1 
+            new_high_index = middle_frame_index + int(superwindow_size/2) + 1
+            superwindow = pitchList[new_low_index:new_high_index]
+            middle_frame_index += 1 # superwindow will be offset by 1; move the middle index pointer up 1 frame.
+            # add the next frame's data to the superwindow
+            if dataIndex < len(pitchList):
+                superwindow.append(pitchList[dataIndex])
+            else:
                 break
-            superwindow.append(pitchList[dataIndex])
             dataIndex += 1
             continue
             
@@ -230,16 +257,42 @@ def despecklePitches(pitchList, superwindow_size, sruthi):
     print("|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
     print()
     return pitchList
-
-def testRagam():
-    arohanam = [Note("S", 1), Note("R", 2, 1), Note("G", 3, 1), Note("P", 1), Note("N", 3, 1), Note("S", 2)]
-    avarohanam = [Note("S", 2), Note("N", 3, 1), Note("D", 2, 1), Note("P", 1), Note("M", 2, 1), Note("G", 3, 1), Note("R", 2, 1), Note("S", 1)]
-    ragdb = RagamDB("ragam_list.txt")
-    print(ragdb.searchByScales(arohanam, avarohanam))
     
-def testFile(filename, sruthi):
-    pitches = processFile(filename, sruthi)
-    return pitches
+# Takes a list of pitch frequencies (after despeckling) and returns a list of Notes
+# in the order that they are given in the input frequencies.
+def extractNotesFromDespeckledFreqs(freqs, sruthi):
+    currentFreq = None
+    extractedNotes = []
+    lastAddedNote = None
+    if freqs == []:
+        return extractedNotes
+    
+    # Notes are only extracted if there are at least two instances of a frequency in a row
+    currentFreq = None if freqs[0] == [] else freqs[0][0]
+    for i in range(1, len(freqs)):
+        freq = None if freqs[i] == [] else freqs[i][0]
+        if freq == currentFreq:
+            pitch = freqToPitch(freq)
+            note = convertPitchesToSwaras([pitch], sruthi)[0]
+            if lastAddedNote != note:
+                extractedNotes.append(note)
+                lastAddedNote = note 
+        else:
+            currentFreq = freq 
+    
+    return extractedNotes
+    
+# Given the note list from the recording, returns a list of Transitions from notes.
+def determineTransitionsFromNotes(noteList):
+    if len(noteList) < 2:
+        return []
+    transitions = []
+    previousNote = noteList[0][0]
+    for i in range(1, len(noteList)):
+        transitions.append(Transition(previousNote, noteList[i][0]))
+        previousNote = noteList[i][0]
+    
+    return transitions 
 
 def testAllData():
     successTracker = {}
@@ -280,23 +333,23 @@ def testAllData():
             
     
 def main():
-    # testRagam()
+    
+    ragamDB = RagamDB("reference/ragam_list.txt")
+    
     print()
-    print("Beginning sruthi analysis...")
+    print("Beginning ragam analysis...")
     print()
     
-    #isolating non-noise fundamental pitches
-    file = "mayamalavagowla_testing/mayamalavagowla_arohanam_g.mp3"
+    file = "mayamalavagowla_testing/mayamalavagowla.mp3"
     sruthi = "G3"
     filename = file[:file.index('.')]
-    x = testFile("%s" % file, sruthi)
-    pitches = [pitch for pitch in x ]
-    # with open("output/%s.csv" % filename, 'w') as csvfile:
-    #     writer = csv.writer(csvfile)
-    for pitch in pitches:
-    #         writer.writerow([convertPitchesToSwaras([pitch[0]], sruthi)[0][0], pitch[1]])
-        print("Swara: %s, Count: %d" % (convertPitchesToSwaras([pitch[0]], sruthi)[0][0], pitch[1]))
+    transitions = processFile(file, sruthi)
     
+    ragas_that_meet_criteria = []
+    for transition in transitions:
+        ragas_that_meet_criteria = ragamDB.getRagasWithTransition(ragas_that_meet_criteria, transition)
+            
+    print(ragas_that_meet_criteria)
     
 if __name__ == '__main__':
     main()

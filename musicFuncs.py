@@ -1,29 +1,6 @@
 from math import log2, pow
 from RagamDB import *
 
-class Transition():
-    
-    # base is the base note and end is the end note (both of type Note)
-    def __init__(self, base, end):
-        self.base = base
-        self.end = end
-        # motion represents the direction of the note: -1 is down, 1 is up, 0 is flat
-        self.motion = 0
-        if end > base:
-            self.motion = 1
-        elif end < base:
-            self.motion = -1
-    
-    def __repr__(self):
-        direction = "flat"
-        if self.motion == 1:
-            direction = "up"
-        elif self.motion == -1:
-            direction = "down"
-        return "%s -> %s, %s" % (self.base, self.end, direction)
-
-
-
 # Returns the number of steps between a start pitch and end pitch.
 # The number of steps is positive if the end pitch is higher than the starting pitch. Negative if otherwise. 0 if the same frequency.
 def getNumSteps(start, end):
@@ -62,39 +39,39 @@ def convertPitchFromSteps(numSteps):
         octave = 0
     numSteps %= 12
     if numSteps == 0:
-        return [Note("S", octave=octave)]
+        return [Note(note="S", octave=octave)]
     elif abs(numSteps) == 12:
         if numSteps == 12:
-            return [Note("S", octave)]
+            return [Note(note="S", octave=octave)]
         else:
-            return [Note("S", octave)]
+            return [Note(note="S", octave=octave)]
     elif abs(numSteps) == 1 or abs(numSteps) == 11:
         if numSteps == -1 or numSteps == 11:
-            return [Note("N3", octave)]
+            return [Note(note="N", noteclass=3, octave=octave)]
         else:
-            return [Note("R1", octave)]
+            return [Note(note="R", noteclass=1, octave=octave)]
     elif abs(numSteps) == 2 or abs(numSteps) == 10:
         if numSteps == -2 or numSteps == 10:
-            return [Note("D3", octave), Note("N2", octave)]
+            return [Note(note="D", noteclass=3, octave=octave), Note(note="N", noteclass=2, octave=octave)]
         else:
-            return [Note("R2", octave), Note("G1", octave)]
+            return [Note(note="R", noteclass=2, octave=octave), Note(note="G", noteclass=1, octave=octave)]
     elif abs(numSteps) == 3 or abs(numSteps) == 9:
         if numSteps == -3 or numSteps == 9:
-            return [Note("D2", octave), Note("N1", octave)]
+            return [Note(note="D", noteclass=2, octave=octave), Note(note="N", noteclass=1, octave=octave)]
         else:
-            return [Note("R3", octave), Note("G2", octave)]
+            return [Note(note="R", noteclass=3, octave=octave), Note(note="G", noteclass=2, octave=octave)]
     elif abs(numSteps) == 4 or abs(numSteps) == 8:
         if numSteps == -4 or numSteps == 8:
-            return [Note("D1", octave)]
+            return [Note(note="D", noteclass=1, octave=octave)]
         else:
-            return [Note("G3", octave)]
+            return [Note(note="G", noteclass=3, octave=octave)]
     elif abs(numSteps) == 5 or abs(numSteps) == 7:
         if numSteps == -5 or numSteps == 7:
-            return [Note("P", octave)]
+            return [Note(note="P", octave=octave)]
         else:
-            return [Note("M1", octave)]
+            return [Note(note="M", noteclass=1, octave=octave)]
     elif abs(numSteps) == 6:
-            return [Note("M2", octave)]
+            return [Note(note="M", noteclass=2, octave=octave)]
     return []
     
 def freqToPitch(freq):

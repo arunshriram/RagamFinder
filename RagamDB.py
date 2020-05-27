@@ -1,34 +1,20 @@
 
 class Note:
     
-    # constructor for Note that takes Note(note, pitchclass, octave)
+    # constructor for Note that takes Note(note, noteclass, octave)
     # Octave 0 is lower than S0, Octave 1 is regular singing octave, octave 2 is highest.
     # Octave 1 starts at S0, octave 2 starts at S1
-    def __init__(self, note, pitchclass=0, octave=1):
+    def __init__(self, note, noteclass=0, octave=1):
         self.note = note
-        self.pitchclass = pitchclass
+        self.noteclass = noteclass
         self.octave = octave
         self.notes = ["S", "R", "G", "M", "P", "D", "N"]
 
-        
-    # constructor for Note that takes Note(notepitchclass, octave), i.e. Note("D#3")
-    # Octave 0 is lower than S0, Octave 1 is regular singing octave, octave 2 is highest.
-    # Octave 1 starts at S0, octave 2 starts at S1
-    def __init__(self, notewithpitchclass, octave=1):
-        self.octave = octave
-        if len(notewithpitchclass) == 1:
-            self.note = notewithpitchclass
-            self.pitchclass = 0
-        else:
-            self.note = notewithpitchclass[:len(notewithpitchclass) - 1]
-            self.pitchclass = int(notewithpitchclass[len(notewithpitchclass) - 1:])
-        self.notes = ["S", "R", "G", "M", "P", "D", "N"]
-    
     def __eq__(self, other):
-        return self.note == other.note and self.pitchclass == other.pitchclass and self.octave == other.octave
+        return self.note == other.note and self.noteclass == other.noteclass and self.octave == other.octave
     
     def __repr__(self):
-        return "%s%d: %d" % (self.note, self.pitchclass, self.octave)
+        return "%s%d: %d" % (self.note, self.noteclass, self.octave)
     
     def __gt__(self, other):
         index1 = self.notes.index(self.note)
@@ -39,7 +25,7 @@ class Note:
             if index1 > index2:
                 return True 
             if index1 == index2:
-                if self.pitchclass > other.pitchclass:
+                if self.noteclass > other.noteclass:
                     return True
         return False
     
@@ -52,11 +38,34 @@ class Note:
             if index1 < index2:
                 return True 
             if index1 == index2:
-                if self.pitchclass > other.pitchclass:
+                if self.noteclass > other.noteclass:
                     return True
         return False
 
     
+class Transition():
+    
+    # base is the base note and end is the end note (both of type Note)
+    def __init__(self, base, end):
+        self.base = base
+        self.end = end
+        # motion represents the direction of the note: -1 is down, 1 is up, 0 is flat
+        self.motion = 0
+        if end > base:
+            self.motion = 1
+        elif end < base:
+            self.motion = -1
+    
+    def __repr__(self):
+        direction = "flat"
+        if self.motion == 1:
+            direction = "up"
+        elif self.motion == -1:
+            direction = "down"
+        return "%s -> %s, %s" % (self.base, self.end, direction)
+    
+    def __eq__(self, other):
+        return self.motion == other.motion and self.base == other.base and self.end == other.end
 
 
 class Ragam:
@@ -65,6 +74,16 @@ class Ragam:
         self.ascending = ascendingNotes
         self.descending = descendingNotes
         self.parent = parent
+        # The transitions list is meant to demonstrate the relationships between notes
+        self.transitions = self.__getTransitions(self.ascending) + self.__getTransitions(self.descending)
+        
+        
+    def __getTransitions(self, scale):
+        transitionList = []
+        for i in range(0, len(scale)):
+            for j in range(i, len(scale)):
+                transitionList.append(Transition(scale[i], scale[j]))
+        return transitionList
         
     def __repr__(self):
         return "%s: %s - %s" % (self.name, ' '.join([str(x) for x in self.ascending]), ' '.join([str(x) for x in self.descending]))
@@ -73,8 +92,6 @@ class Ragam:
         return self.ascending == other.ascending and self.descending == other.descending and self.name == other.name 
     
 
-# rag = Ragam("mohanam", [Note("S"), Note("R", 2), Note("G", 3), Note("P"), Note("D", 2), Note("S")], [Note("S"), Note("D", 2), Note("P"), Note("G", 3), Note("R", 2), Note("S")], "harikambhoji")
-# print(rag)
 
 class RagamNotFoundError(Exception):
     pass
@@ -82,6 +99,17 @@ class RagamNotFoundError(Exception):
 class RagamDB:
     def __init__(self, filename):
         self.ragamList = self.getRagamListFromFile(filename)
+        
+    # Takes a list of ragas and a transition, and returns a list of ragas from the original list that 
+    # include the transition.
+    def getRagasWithTransition(self, existing_ragas, transition):
+        ragas = []
+        if existing_ragas == []:
+            existing_ragas = self.ragamList
+        for ragam in existing_ragas:
+            if transition in ragam.transitions:
+                ragas.append(ragam)
+        return ragas
         
     def getRagamListFromFile(self, filename):
         ragamList = []
@@ -114,10 +142,13 @@ class RagamDB:
                     arohanamNotes = []
                     for note in arohanam:
                         if note == "S" or note == "P":
-                            arohanamNotes.append(Note(note))
+                            if note == "S" and Note(note) in arohanamNotes:
+                                arohanamNotes.append(Note(note=note, octave=2))
+                            else:
+                                arohanamNotes.append(Note(note))
                         else:
                             try:
-                                arohanamNotes.append(Note(note[0], int(note[1])))
+                                arohanamNotes.append(Note(note=note[0], noteclass=int(note[1])))
                             except IndexError:
                                 print("Index error on arohanam for ragam %s " % currentRagam)
                     arohanamLine = False
@@ -128,10 +159,13 @@ class RagamDB:
                     avarohanamNotes = []
                     for note in avarohanam:
                         if note == "S" or note == "P":
-                            avarohanamNotes.append(Note(note))
+                            if note == "S" and Note(note=note, octave=2) not in avarohanamNotes:
+                                avarohanamNotes.append(Note(note=note, octave=2))
+                            else:
+                                avarohanamNotes.append(Note(note))
                         else:
                             try:
-                                avarohanamNotes.append(Note(note[0], int(note[1])))
+                                avarohanamNotes.append(Note(note=note[0], noteclass=int(note[1])))
                             except IndexError:
                                 print("Index error on avarohanam for ragam %s " % currentRagam)
                     arohanamLine = False
