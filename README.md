@@ -9,10 +9,10 @@ the possible ragams.
 ## How to run the program
 RagamFinder is currently written in Python 3, and uses the following libraries:
 
-NumPy
-Matplotlib
-aubio
-PeakUtils
+ - NumPy  
+ - Matplotlib  
+ - aubio  
+ - PeakUtils  
 
 You can install each of these libraries using the command  
 ```bash
