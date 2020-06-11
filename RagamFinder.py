@@ -18,7 +18,6 @@ def processFile(filename, sruthi):
     
     downsample = 1
     samplerate = 44100 // downsample
-    if len( sys.argv ) > 2: samplerate = int(sys.argv[2])
 
     win_s = 4096 // downsample # fft size
     hop_s = 512  // downsample # hop size
@@ -234,21 +233,31 @@ def determineTransitionsFromNotes(noteList):
     
 def main():
     
-    # Initialize the Ragam Database
-    ragamDB = RagamDB("reference/ragam_list.txt")
+    if len(sys.argv) < 3:
+        print("Usage:   python3 RagamFinder.py audio_filename sruthi")
+        print("         audio_filename : The music file that contains ragam to be identified")
+        print("         sruthi         : The tonic pitch of the given audio file")
+        print("Example: python3 RagamFinder.py kalyani.mp3 G")
+        return
+    # Parse arguments
+    
+    # Given filename
+    file = sys.argv[1]
+    # Manually input sruthi
+    sruthi = str(sys.argv[2]) + "3"
+    
+   
     
     print()
     print("Beginning ragam analysis...")
     print()
     
-    # Given filename
-    file = "Arun-voice-testing/maya_full.mp3"
-
-    # Manually input sruthi
-    sruthi = "C3"
+    
     filename = file[:file.index('.')]
     transitions = processFile(file, sruthi)
     
+     # Initialize the Ragam Database
+    ragamDB = RagamDB("reference/ragam_list.txt")
     ragas_that_meet_criteria = []
     print()
     print("|=======================================|")
