@@ -7,7 +7,7 @@ it then cross-references these notes with a given list of ragams (found in refer
 the possible ragams. 
 
 ## How to run the program
-RagamFinder is currently written in Python 3, and uses the following libraries:
+RagamFinder is currently written in Python 3, and uses the following external libraries:
 
  - NumPy  
  - Matplotlib  
