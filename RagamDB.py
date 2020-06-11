@@ -1,4 +1,10 @@
+# Author: Arun Shriram
+# This file holds data class definitions for Notes, Transitions, Ragams, and the RagamDB. 
+# These classes store information for various types of frequently used data, and also provide
+# methods that allow the structures to be converted to strings for easy debugging and printing.
 
+# Represents a Note with a note class and an octave. 
+# Note classes are defined as the number denoting the kind of Carnatic note (i.e. M1 and M2)
 class Note:
     
     # constructor for Note that takes Note(note, noteclass, octave)
@@ -18,6 +24,7 @@ class Note:
     def __repr__(self):
         return "%s%d: %d" % (self.note, self.noteclass, self.octave)
     
+    # Greater than function
     def __gt__(self, other):
         index1 = self.notes.index(self.note)
         index2 = self.notes.index(other.note)
@@ -31,6 +38,7 @@ class Note:
                     return True
         return False
     
+    # Less than function
     def __lt__(self, other):
         index1 = self.notes.index(self.note)
         index2 = self.notes.index(other.note)
@@ -44,7 +52,9 @@ class Note:
                     return True
         return False
 
-    
+# A Transition represents the movement between two notes (a base and an end note).
+# This class also stores the direction of the motion (down, up, or flat). Moving from
+# the same note between octaves is considered a flat motion.
 class Transition():
     
     # base is the base note and end is the end note (both of type Note)
@@ -70,7 +80,9 @@ class Transition():
     def __eq__(self, other):
         return self.motion == other.motion and self.base.note == other.base.note and self.end.note == other.end.note
 
-
+# This class represents a Ragam, which contains a name, a list of ascending notes,
+# a list of descending notes, and the name of its parent ragam. The Ragam also calculates
+# its transition matrix, which is just a list of all possible ascending and descending transitions.
 class Ragam:
     def __init__(self, name, ascendingNotes, descendingNotes, parent=None):
         self.name = name
@@ -80,7 +92,7 @@ class Ragam:
         # The transitions list is meant to demonstrate the relationships between notes
         self.transitions = self.__getTransitions(self.ascending) + self.__getTransitions(self.descending)
         
-        
+    # Private method to calculate all transitions that are possible within the given scale. 
     def __getTransitions(self, scale):
         transitionList = []
         for i in range(0, len(scale)):
@@ -99,10 +111,11 @@ class Ragam:
         return self.ascending == other.ascending and self.descending == other.descending and self.name == other.name 
     
 
-
+# Custom error for try/except blocks dealing with Ragams
 class RagamNotFoundError(Exception):
     pass
 
+# This class is a wrapper class that simply stores the list of all ragams used for reference.
 class RagamDB:
     def __init__(self, filename):
         self.ragamList = self.getRagamListFromFile(filename)
@@ -119,6 +132,8 @@ class RagamDB:
                 ragas.append(ragam)
         return ragas
         
+    # Reads the given filename and returns a list of Ragam objects representing
+    # each ragam in the file.
     def getRagamListFromFile(self, filename):
         ragamList = []
         currentParent = ""

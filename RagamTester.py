@@ -1,89 +1,19 @@
 #! /usr/bin/env python
+# Author: Arun Shriram
+# This file contains the main functions used for testing the Ragam Finder program, that operate on a 
+# high level.
 
 import sys, os, csv, traceback
 from aubio import source, pitch
-import os.path
-from numpy import array, ma
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.io import wavfile 
 from statistics import mode
-import peakutils 
 from RagamDB import *
 from musicFuncs import *
 
-    
-# Takes a ascended-sorted list of pitch frequencies from FFT analysis, and returns a list of the fundamental frequencies found.
-def getFundamentalFrequencies(pitchFrequencies):
-    if len(pitchFrequencies) < 0:
-        return []
-    if len(pitchFrequencies) == 1:
-        return pitchFrequencies 
-    funFreqs = []
-    checkedFrequencies = []
-    index = len(pitchFrequencies) - 1
-    # iterating over list from end to beginning; checking higher frequencies for overtones first.
-    for i in range(len(pitchFrequencies) - 1, -1, -1):
-        freq = pitchFrequencies[i]
-        curFunFreq = None
-        if freq in funFreqs:
-           index -= 1
-           continue
-        for low_freq_index in range(index - 1, -1, -1): # checking the left part of the list
-            low_freq = pitchFrequencies[low_freq_index]
-            if low_freq == freq:
-                continue
-            if low_freq not in funFreqs and checkIfOvertone(low_freq, freq): # this means that the freq pitch is an overtone of low_freq
-                curFunFreq = low_freq
-        if curFunFreq is not None and [checkIfOvertone(i, curFunFreq) for i in funFreqs] == [False]*len(funFreqs):
-            funFreqs.append(curFunFreq)
-            funFreqs = sorted(funFreqs)
-            
-        index -= 1
-    return funFreqs
-
-
-            
-def getFrequencies(rate, samples):
-        # plt.figure(1)
-        # plt.xlabel('samples')
-        # plt.ylabel('amplitude')
-        # plt.plot(samples)
-        # plt.show()
-        len_data = len(samples)
-
-        channel_1 = np.zeros(2**(int(np.ceil(np.log2(len_data)))))
-        channel_1[0:len_data] = samples
-
-        fourier = np.fft.fft(channel_1)
-        w = np.linspace(0, 44100, len(fourier))
-
-        # First half is the real component, second half is imaginary
-        fourier_to_plot = abs(fourier[0:len(fourier)//2])
-        w = w[0:len(fourier)//2]
-
-        indexesOfPeaks = peakutils.indexes(fourier_to_plot)
-        peakFrequencies = [w[u] for u in indexesOfPeaks]
-        
-        xxx = peakutils.interpolate(w, fourier_to_plot, ind=indexesOfPeaks)
-        pitchPeaks = [freqToPitch(freq) for freq in peakFrequencies]
-        funFreqs = getFundamentalFrequencies(peakFrequencies)
-        if os.getenv("PRINT_FREQS") is not None:
-            print("Peaks: %s" % str(peakFrequencies))
-
-            print("\n---------------------------------------------------------------------")
-            print("========> FFs: %s" % str(funFreqs))
-            print("---------------------------------------------------------------------\n")
-        # print("XXX: %s" % str([freqToPitch(freq) for freq in xxx]))
-        # print("Peak Frequencies: %s" % str(pitchPeaks))
-        # print()
-        plt.figure(1)
-        plt.xlabel('frequency')
-        plt.ylabel('amplitude')
-        plt.plot(w[:int(len(w)/10)], fourier_to_plot[:int(len(fourier_to_plot)/10)])
-        # plt.show()
-        return funFreqs
-    
+# Handles all file processing - takes a filename and a sruthi, gets all the frequencies present in the file
+# using FFTs, determines the fundamental frequencies, despeckles these fundamental frequencies, and ultimately
+# extracts the notes and transitions present in the given file. Returns this list of transitions.
 def processFile(filename, sruthi):
     
     downsample = 1
@@ -138,8 +68,6 @@ def processFile(filename, sruthi):
     
     transition_list = determineTransitionsFromNotes(note_list)
     
-
-    
     #-----------------------------------------------------------------------------------
 
     # GRAPH OF NOTES AFTER DESPECKLE    
@@ -149,6 +77,8 @@ def processFile(filename, sruthi):
 
     return transition_list
 
+# Given a set of frequencies, a sruthi, a filename, and a boolean value representing whether
+# this list of freqs has been despeckled, plots the given notes.
 def plotNotes(original_freq_list, sruthi, filename, despeckled):
     notes_to_graph = []
     
@@ -304,14 +234,17 @@ def determineTransitionsFromNotes(noteList):
     
 def main():
     
+    # Initialize the Ragam Database
     ragamDB = RagamDB("reference/ragam_list.txt")
     
     print()
     print("Beginning ragam analysis...")
     print()
     
+    # Given filename
     file = "Arun-voice-testing/maya_full.mp3"
 
+    # Manually input sruthi
     sruthi = "C3"
     filename = file[:file.index('.')]
     transitions = processFile(file, sruthi)
@@ -319,7 +252,6 @@ def main():
     ragas_that_meet_criteria = []
     print()
     print("|=======================================|")
-
     print("|         Transitions Discovered        |")
     print("|=======================================|")
     for transition in transitions:
@@ -329,12 +261,11 @@ def main():
     print()
     for transition in transitions:
         ragas_that_meet_criteria = ragamDB.getRagasWithTransition(ragas_that_meet_criteria, transition)
-        print(len(ragas_that_meet_criteria))
+        print(len(ragas_that_meet_criteria)) # for debugging 
             
     print()
     print()
     print("|================================================================|")
-
     print("|                         Possible Ragas                         |")
     print("|================================================================|")
     for ragam in ragas_that_meet_criteria:

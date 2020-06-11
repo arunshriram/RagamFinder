@@ -1,5 +1,14 @@
+# Author: Arun Shriram
+# This file holds a few auxilary functions that handle converting frequencies to pitches, and pitches
+# to notes. These utility functions are used for fundamental frequency analysis and note extraction.
+
 from math import log2, pow
+import numpy as np
 from RagamDB import *
+import peakutils, os
+from numpy import array, ma
+import matplotlib.pyplot as plt
+
 
 # Returns the number of steps between a start pitch and end pitch.
 # The number of steps is positive if the end pitch is higher than the starting pitch. Negative if otherwise. 0 if the same frequency.
@@ -74,6 +83,7 @@ def convertPitchFromSteps(numSteps):
             return Note(note="M", noteclass=2, octave=octave)
     return []
     
+# Converts a frequency to a pitch. 
 def freqToPitch(freq):
     A4 = 440
     C0 = A4*pow(2, -4.75)
@@ -100,9 +110,80 @@ def checkIfOvertone(pitchA, pitchB):
                 return True
     return False
 
-# Takes a list of pitches (presumably from a given frame) and a pitch representing the sruthi. The
-# sruthi will only ever be going up from C4 to C5. 
+# Takes a pitch to convert and a pitch representing the sruthi. Returns
+# the swara for that pitch.
 def convertPitchToSwara(pitch, sruthi):
 
     numSteps = getNumSteps(sruthi, pitch) # Will be positive, negative, or zero.
     return convertPitchFromSteps(numSteps)
+
+
+# Takes a ascended-sorted list of pitch frequencies from FFT analysis, and returns a list of the fundamental frequencies found.
+def getFundamentalFrequencies(pitchFrequencies):
+    if len(pitchFrequencies) < 0:
+        return []
+    if len(pitchFrequencies) == 1:
+        return pitchFrequencies 
+    funFreqs = []
+    checkedFrequencies = []
+    index = len(pitchFrequencies) - 1
+    # iterating over list from end to beginning; checking higher frequencies for overtones first.
+    for i in range(len(pitchFrequencies) - 1, -1, -1):
+        freq = pitchFrequencies[i]
+        curFunFreq = None
+        if freq in funFreqs:
+           index -= 1
+           continue
+        for low_freq_index in range(index - 1, -1, -1): # checking the left part of the list
+            low_freq = pitchFrequencies[low_freq_index]
+            if low_freq == freq:
+                continue
+            if low_freq not in funFreqs and checkIfOvertone(low_freq, freq): # this means that the freq pitch is an overtone of low_freq
+                curFunFreq = low_freq
+        if curFunFreq is not None and [checkIfOvertone(i, curFunFreq) for i in funFreqs] == [False]*len(funFreqs):
+            funFreqs.append(curFunFreq)
+            funFreqs = sorted(funFreqs)
+            
+        index -= 1
+    return funFreqs
+
+# Returns a list of all frequencies found, given the given sample rate and a list of samples.
+def getFrequencies(rate, samples):
+        # plt.figure(1)
+        # plt.xlabel('samples')
+        # plt.ylabel('amplitude')
+        # plt.plot(samples)
+        # plt.show()
+        len_data = len(samples)
+
+        channel_1 = np.zeros(2**(int(np.ceil(np.log2(len_data)))))
+        channel_1[0:len_data] = samples
+
+        fourier = np.fft.fft(channel_1)
+        w = np.linspace(0, 44100, len(fourier))
+
+        # First half is the real component, second half is imaginary
+        fourier_to_plot = abs(fourier[0:len(fourier)//2])
+        w = w[0:len(fourier)//2]
+
+        indexesOfPeaks = peakutils.indexes(fourier_to_plot)
+        peakFrequencies = [w[u] for u in indexesOfPeaks]
+        
+        xxx = peakutils.interpolate(w, fourier_to_plot, ind=indexesOfPeaks)
+        pitchPeaks = [freqToPitch(freq) for freq in peakFrequencies]
+        funFreqs = getFundamentalFrequencies(peakFrequencies)
+        if os.getenv("PRINT_FREQS") is not None:
+            print("Peaks: %s" % str(peakFrequencies))
+
+            print("\n---------------------------------------------------------------------")
+            print("========> FFs: %s" % str(funFreqs))
+            print("---------------------------------------------------------------------\n")
+        # print("XXX: %s" % str([freqToPitch(freq) for freq in xxx]))
+        # print("Peak Frequencies: %s" % str(pitchPeaks))
+        # print()
+        plt.figure(1)
+        plt.xlabel('frequency')
+        plt.ylabel('amplitude')
+        plt.plot(w[:int(len(w)/10)], fourier_to_plot[:int(len(fourier_to_plot)/10)])
+        # plt.show()
+        return funFreqs
